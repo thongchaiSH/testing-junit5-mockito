@@ -12,14 +12,11 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class SpecialitySDJpaServiceTest {
-
-
 
     @Mock
     SpecialtyRepository specialtyRepository;
@@ -131,5 +128,74 @@ class SpecialitySDJpaServiceTest {
     @Test
     void testDelete() {
         service.delete(new Speciality());
+    }
+
+    @Test
+    void testDoThrow() {
+        doThrow(new RuntimeException("boom")).when(specialtyRepository).delete(any());
+
+        assertThrows(RuntimeException.class,()->{
+            specialtyRepository.delete(new Speciality());
+        });
+
+        verify(specialtyRepository).delete(any());
+    }
+
+    @Test
+    void testFindByIdThrow() {
+        //given
+        given(specialtyRepository.findById(1L)).willThrow(new RuntimeException("boom"));
+        //when
+        assertThrows(RuntimeException.class,()->{
+            service.findById(1L);
+        });
+        //then
+        then(specialtyRepository).should().findById(1L);
+    }
+
+    @Test
+    void testDeleteBDD() {
+        //given
+        willThrow(new RuntimeException("boom")).given(specialtyRepository).delete(any());
+        //when
+        assertThrows(RuntimeException.class,()->{
+            specialtyRepository.delete(new Speciality());
+        });
+        //then
+        then(specialtyRepository).should().delete(any());
+    }
+
+    @Test
+    void testSaveLambda() {
+        //given
+        final  String MATCH_ME="MATCH_ME";
+        Speciality speciality=new Speciality();
+        speciality.setDescription(MATCH_ME);
+
+        Speciality saveSpeciality=new Speciality();
+        saveSpeciality.setId(1L);
+        given(specialtyRepository.save(argThat(argument->argument.getDescription().equals(MATCH_ME)))).willReturn(saveSpeciality);
+
+        //when
+        Speciality returnedSpeciality=service.save(speciality);
+        //then
+        assertThat(returnedSpeciality.getId()).isEqualTo(1L);
+    }
+
+    @Test
+    void testSaveLambdaNoMatch() {
+        //given
+        final  String MATCH_ME="MATCH_ME";
+        Speciality speciality=new Speciality();
+        speciality.setDescription("No Match");
+
+        Speciality saveSpeciality=new Speciality();
+        saveSpeciality.setId(1L);
+//        lenient().given(specialtyRepository.save(argThat(argument->argument.getDescription().equals(MATCH_ME)))).willReturn(saveSpeciality);
+        lenient().when(specialtyRepository.save(argThat(argument -> argument.getDescription().equals(MATCH_ME)))).thenReturn(saveSpeciality);
+        //when
+        Speciality returnedSpeciality=service.save(speciality);
+        //then
+        assertNull(returnedSpeciality);
     }
 }
